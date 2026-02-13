@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Nurture Nannies">
+    <meta name="theme-color" content="#c8d900">
+    <title>Nurture Nannies - Community Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { 
+            -webkit-tap-highlight-color: transparent; 
+            box-sizing: border-box;
+        }
+        body { 
+            overscroll-behavior: none;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-lime-50 via-yellow-50 to-green-50 min-h-screen">
+    <div id="root"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ===================================
+        // FIREBASE CONFIGURATION  
+        // ===================================
+        // ✅ Your Firebase config is already configured!
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZzH8_G2CstMMFHMlr1AyZCLm5UqLXFmQ",
+            authDomain: "nurture-nannies.firebaseapp.com",
+            databaseURL: "https://nurture-nannies-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "nurture-nannies",
+            storageBucket: "nurture-nannies.firebasestorage.app",
+            messagingSenderId: "885320847878",
+            appId: "1:885320847878:web:07d0d50f8e5f6637e32987",
+            measurementId: "G-1F90E4EV5K"
+        };
+
+        // Initialize Firebase
+        let auth, database;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            auth = firebase.auth();
+            database = firebase.database();
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+        }
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [view, setView] = useState('home'); // 'home', 'members', 'rules', 'admin'
+            const [isAdmin, setIsAdmin] = useState(false);
+            
+            // Login form states
+            const [password, setPassword] = useState('');
+            const [displayName, setDisplayName] = useState('');
+            const [showPassword, setShowPassword] = useState(false);
+            const [authError, setAuthError] = useState('');
+            const [authLoading, setAuthLoading] = useState(false);
+
+            // Playdate states
+            const [playdates, setPlaydates] = useState([]);
+            const [currentWeekStart, setCurrentWeekStart] = useState(getWeekStart(new Date()));
+            const [showCreatePlaydate, setShowCreatePlaydate] = useState(false);
+
+            // Members states
+            const [allMembers, setAllMembers] = useState([]);
+            const [membersLoading, setMembersLoading] = useState(false);
+
+            // House rules state
+            const [houseRules, setHouseRules] = useState('');
+            const [editingRules, setEditingRules] = useState(false);
+
+            // Admin states
+            const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+            const [newMemberName, setNewMemberName] = useState('');
+            const [newMemberPassword, setNewMemberPassword] = useState('');
+            const [adminPasswordPrompt, setAdminPasswordPrompt] = useState('');
+            const [addMemberError, setAddMemberError] = useState('');
+            const [adminPasswordError, setAdminPasswordError] = useState('');
+            const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
+            const [selectedMember, setSelectedMember] = useState(null);
+
+            // ===================================
+            // AUTHENTICATION
+            // ===================================
+            
+            useEffect(() => {
+                const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+                    if (firebaseUser) {
+                        setUser(firebaseUser);
+                        // Check if admin
+                        const roleSnapshot = await database.ref(`users/${firebaseUser.uid}/role`).once('value');
+                        setIsAdmin(roleSnapshot.val() === 'admin');
+                    } else {
+                        setUser(null);
+                        setIsAdmin(false);
+                    }
+                    setLoading(false);
+                });
+
+                return () => unsubscribe();
+            }, []);
+
+            // 🔒 SECURITY: Handle login with name-based authentication
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setAuthError('');
+                setAuthLoading(true);
+
+                try {
+                    // Find user by name in database
+                    const usersSnapshot = await database.ref('users').once('value');
+                    let foundUser = null;
+
+                    usersSnapshot.forEach((child) => {
+                        const userData = child.val();
+                        if (userData.name && userData.name.toLowerCase() === displayName.toLowerCase()) {
+                            foundUser = userData;
+                        }
+                    });
+
+                    if (!foundUser) {
+                        setAuthError('❌ Name not found. Please check spelling or contact admin.');
+                        setAuthLoading(false);
+                        return;
+                    }
+
+                    // Login with email and password
+                    await auth.signInWithEmailAndPassword(foundUser.email, password);
+                } catch (error) {
+                    console.error("Login error:", error);
+                    switch (error.code) {
+                        case 'auth/wrong-password':
+                            setAuthError('❌ Incorrect password. Please try again.');
+                            break;
+                        case 'auth/too-many-requests':
+                            setAuthError('❌ Too many failed attempts. Please try again later.');
+                            break;
+                        case 'auth/user-disabled':
+                            setAuthError('❌ This account has been disabled. Contact admin.');
+                            break;
+                        default:
+                            setAuthError(`❌ Login failed. Please try again.`);
+                    }
+                } finally {
+                    setAuthLoading(false);
+                }
+            };
+
+            // 🔒 SECURITY: Handle logout
+            const handleLogout = async () => {
+                try {
+                    await auth.signOut();
+                    setView('home');
+                } catch (error) {
+                    console.error("Logout error:", error);
+                }
+            };
+
+            // ===================================
+            // PLAYDATES
+            // ===================================
+
+            useEffect(() => {
+                if (!user) return;
+
+                const playdatesRef = database.ref('playdates');
+                playdatesRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const playdatesList = Object.keys(data).map(key => ({
+                            id: key,
+                            ...data[key]
+                        }));
+                        setPlaydates(playdatesList);
+                    } else {
+                        setPlaydates([]);
+                    }
+                });
+
+                return () => playdatesRef.off();
+            }, [user]);
+
+            function getWeekStart(date) {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+                return new Date(d.setDate(diff));
+            }
+
+            function formatDate(date) {
+                return date.toISOString().split('T')[0];
+            }
+
+            function getWeekDays(weekStart) {
+                const days = [];
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(weekStart);
+                    day.setDate(weekStart.getDate() + i);
+                    days.push(day);
+                }
+                return days;
+            }
+
+            const weekDays = getWeekDays(currentWeekStart);
+
+            const playdatesThisWeek = playdates.filter(p => {
+                const pDate = new Date(p.date);
+                const weekEnd = new Date(currentWeekStart);
+                weekEnd.setDate(currentWeekStart.getDate() + 7);
+                return pDate >= currentWeekStart && pDate < weekEnd;
+            });
+
+            function CreatePlaydateModal({ onClose }) {
+                const [date, setDate] = useState('');
+                const [time, setTime] = useState('10:00');
+                const [location, setLocation] = useState('');
+                const [villa, setVilla] = useState('');
+                const [notes, setNotes] = useState('');
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    
+                    const newPlaydate = {
+                        date,
+                        time,
+                        location: location || `Villa ${villa}`,
+                        villa,
+                        hostUid: user.uid,
+                        hostName: user.displayName || displayName,
+                        notes,
+                        createdAt: new Date().toISOString(),
+                        attendees: {
+                            [user.uid]: true
+                        }
+                    };
+
+                    await database.ref('playdates').push(newPlaydate);
+                    onClose();
+                };
+
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                            <h3 className="text-2xl font-bold text-gray-800 mb-4">Create Playdate</h3>
+                            
+                            <form onSubmit={handleSubmit}>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Time
+                                    </label>
+                                    <input
+                                        type="time"
+                                        value={time}
+                                        onChange={(e) => setTime(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Villa Number
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={villa}
+                                        onChange={(e) => setVilla(e.target.value)}
+                                        placeholder="e.g., 559"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Location Name (Optional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={location}
+                                        onChange={(e) => setLocation(e.target.value)}
+                                        placeholder="e.g., Casa Dora Pool Area"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                    />
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Notes (Optional)
+                                    </label>
+                                    <textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        placeholder="Any additional details..."
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        rows="3"
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
+                                    >
+                                        Create Playdate
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            function PlaydateCard({ playdate }) {
+                const [isAttending, setIsAttending] = useState(false);
+                const [attendeeCount, setAttendeeCount] = useState(0);
+                const isHost = playdate.hostUid === user.uid;
+
+                useEffect(() => {
+                    if (playdate.attendees) {
+                        setIsAttending(playdate.attendees[user.uid] === true);
+                        setAttendeeCount(Object.values(playdate.attendees).filter(v => v === true).length);
+                    }
+                }, [playdate]);
+
+                const toggleRSVP = async () => {
+                    const newStatus = !isAttending;
+                    await database.ref(`playdates/${playdate.id}/attendees/${user.uid}`).set(newStatus);
+                };
+
+                const deletePlaydate = async () => {
+                    if (confirm('Are you sure you want to delete this playdate?')) {
+                        await database.ref(`playdates/${playdate.id}`).remove();
+                    }
+                };
+
+                return (
+                    <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-lime-500 mb-4">
+                        <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <p className="text-lg font-bold text-gray-800">
+                                    {new Date(playdate.date + 'T' + playdate.time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                                </p>
+                                <p className="text-gray-600">{playdate.time}</p>
+                            </div>
+                            {isHost && (
+                                <button
+                                    onClick={deletePlaydate}
+                                    className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                    🗑️ Delete
+                                </button>
+                            )}
+                        </div>
+                        
+                        <div className="mb-3">
+                            <p className="text-gray-700">
+                                <span className="font-semibold">📍 Location:</span> {playdate.location}
+                            </p>
+                            <p className="text-gray-700">
+                                <span className="font-semibold">👤 Host:</span> {playdate.hostName}
+                            </p>
+                            <p className="text-gray-600 text-sm">
+                                <span className="font-semibold">👥 Attending:</span> {attendeeCount} {attendeeCount === 1 ? 'family' : 'families'}
+                            </p>
+                        </div>
+
+                        {playdate.notes && (
+                            <p className="text-gray-600 text-sm mb-3 italic">
+                                "{playdate.notes}"
+                            </p>
+                        )}
+
+                        <button
+                            onClick={toggleRSVP}
+                            className={`w-full py-2 rounded-lg font-semibold transition-colors ${
+                                isAttending
+                                    ? 'bg-lime-500 text-gray-800 hover:bg-lime-600'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            {isAttending ? '✓ I\'m Going' : 'RSVP'}
+                        </button>
+                    </div>
+                );
+            }
+
+            // ===================================
+            // MEMBERS
+            // ===================================
+
+            useEffect(() => {
+                if (!user) return;
+
+                setMembersLoading(true);
+                const usersRef = database.ref('users');
+                usersRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const membersList = Object.keys(data).map(key => ({
+                            uid: key,
+                            ...data[key]
+                        }));
+                        setAllMembers(membersList);
+                    }
+                    setMembersLoading(false);
+                });
+
+                return () => usersRef.off();
+            }, [user]);
+
+            // ===================================
+            // HOUSE RULES
+            // ===================================
+
+            useEffect(() => {
+                if (!user) return;
+
+                const rulesRef = database.ref('house_rules');
+                rulesRef.on('value', (snapshot) => {
+                    setHouseRules(snapshot.val() || DEFAULT_HOUSE_RULES);
+                });
+
+                return () => rulesRef.off();
+            }, [user]);
+
+            const DEFAULT_HOUSE_RULES = `🏠 NURTURE NANNIES HOUSE RULES
+
+👟 Shoes Off Inside
+• Remove shoes at the entrance
+• Bring indoor slippers if needed
+
+🧹 Clean Up
+• Pick up toys before leaving
+• Leave the space as you found it
+• Help kids clean their messes
+
+🤫 Respect Quiet Hours
+• 1:00 PM - 3:00 PM (nap time)
+• Keep voices low during naps
+
+🚗 Parking
+• Park in designated visitor spots
+• Don't block driveways
+• Follow community parking rules
+
+🚪 Gate Etiquette
+• Close gates behind you
+• Don't let children run to the street
+• Supervise kids near exits
+
+👶 Supervision
+• Each parent/nanny watches their own children
+• No running inside
+• Be mindful of different age groups
+
+🍎 Snacks & Allergies
+• Ask about allergies before offering food
+• Bring your own snacks if preferred
+• Clean up food spills immediately
+
+📱 Communication
+• RSVP to playdates
+• Give 24hr notice if canceling
+• Update group on schedule changes
+
+💚 Be Kind & Respectful
+• Treat homes with care
+• Respect different parenting styles
+• Help create a welcoming community`;
+
+            const saveHouseRules = async () => {
+                await database.ref('house_rules').set(houseRules);
+                setEditingRules(false);
+            };
+
+            // ===================================
+            // ADMIN FUNCTIONS
+            // ===================================
+
+            const verifyAdminPassword = async (password) => {
+                try {
+                    const credential = firebase.auth.EmailAuthProvider.credential(
+                        user.email,
+                        password
+                    );
+                    await user.reauthenticateWithCredential(credential);
+                    return true;
+                } catch (error) {
+                    console.error("Admin password verification failed:", error);
+                    return false;
+                }
+            };
+
+            const handleAddMember = async (e) => {
+                e.preventDefault();
+                setAddMemberError('');
+                setAdminPasswordError('');
+
+                const isVerified = await verifyAdminPassword(adminPasswordPrompt);
+                if (!isVerified) {
+                    setAdminPasswordError('❌ Incorrect admin password');
+                    return;
+                }
+
+                setAuthLoading(true);
+                try {
+                    const autoEmail = newMemberName.toLowerCase().replace(/\s+/g, '.') + '@nurturenannies.local';
+
+                    const result = await auth.createUserWithEmailAndPassword(
+                        autoEmail,
+                        newMemberPassword
+                    );
+
+                    await result.user.updateProfile({
+                        displayName: newMemberName
+                    });
+
+                    await database.ref(`users/${result.user.uid}`).set({
+                        name: newMemberName,
+                        email: autoEmail,
+                        createdAt: new Date().toISOString(),
+                        createdBy: user.uid,
+                        role: 'member'
+                    });
+
+                    await database.ref('audit_logs').push({
+                        action: 'member_added',
+                        userId: user.uid,
+                        targetName: newMemberName,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    setNewMemberName('');
+                    setNewMemberPassword('');
+                    setAdminPasswordPrompt('');
+                    setShowAddMemberModal(false);
+                    
+                    alert(`✅ Member added successfully!\n\nShare these login credentials:\n\nName: ${newMemberName}\nPassword: ${newMemberPassword}\n\n(Member will login with just their name and password)`);
+                } catch (error) {
+                    console.error("Error adding member:", error);
+                    setAddMemberError(`❌ Error: ${error.message}`);
+                } finally {
+                    setAuthLoading(false);
+                }
+            };
+
+            const handleRemoveMember = async () => {
+                setAdminPasswordError('');
+
+                const isVerified = await verifyAdminPassword(adminPasswordPrompt);
+                if (!isVerified) {
+                    setAdminPasswordError('❌ Incorrect admin password');
+                    return;
+                }
+
+                try {
+                    await database.ref(`users/${selectedMember.uid}`).update({
+                        disabled: true,
+                        disabledAt: new Date().toISOString(),
+                        disabledBy: user.uid
+                    });
+
+                    await database.ref('audit_logs').push({
+                        action: 'member_removed',
+                        userId: user.uid,
+                        targetUid: selectedMember.uid,
+                        targetName: selectedMember.name,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    setShowRemoveMemberModal(false);
+                    setSelectedMember(null);
+                    setAdminPasswordPrompt('');
+                } catch (error) {
+                    console.error("Error removing member:", error);
+                    setAdminPasswordError(`❌ Error: ${error.message}`);
+                }
+            };
+
+            // ===================================
+            // RENDER
+            // ===================================
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="animate-pulse text-2xl text-gray-600">Loading...</div>
+                    </div>
+                );
+            }
+
+            // Show login if not authenticated
+            if (!user) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+                        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border-t-4 border-lime-500">
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-lime-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-12 h-12 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-3xl font-bold text-gray-800 mb-1">Nurture Nannies</h2>
+                                <p className="text-lime-600 font-medium mb-2">Secure Community Platform</p>
+                                <p className="text-gray-600 text-sm italic">no place like home</p>
+                            </div>
+
+                            <div className="mb-6 p-4 bg-lime-50 border border-lime-200 rounded-lg">
+                                <p className="text-sm font-semibold text-gray-700 mb-2">🔐 Secure Platform</p>
+                                <ul className="text-xs text-gray-600 space-y-1">
+                                    <li>✅ Individual user accounts</li>
+                                    <li>✅ Encrypted data transmission</li>
+                                    <li>✅ Protected member information</li>
+                                    <li>✅ Secure Firebase Authentication</li>
+                                </ul>
+                            </div>
+
+                            <form onSubmit={handleLogin}>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Your Name (Mom or Nanny)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g., Andrea, Glydel, Cherry"
+                                        value={displayName}
+                                        onChange={(e) => setDisplayName(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        required
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Use your name from the community directory
+                                    </p>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Password
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Enter your password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        >
+                                            {showPassword ? '👁️' : '👁️‍🗨️'}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Password provided by admin when your account was created
+                                    </p>
+                                </div>
+
+                                {authError && (
+                                    <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm">
+                                        {authError}
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={authLoading}
+                                    className="w-full py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {authLoading ? 'Signing in...' : 'Sign In'}
+                                </button>
+                            </form>
+
+                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700">
+                                <p className="font-semibold mb-1">🔐 Member Login</p>
+                                <p className="text-xs">
+                                    Don't have an account? Contact your admin to be added to the platform.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Main app (logged in)
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header */}
+                    <div className="bg-white shadow-md sticky top-0 z-10">
+                        <div className="max-w-4xl mx-auto px-4 py-4">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Nurture Nannies</h1>
+                                    <p className="text-sm text-gray-600">Welcome, {user.displayName || displayName}</p>
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-semibold"
+                                >
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Navigation */}
+                    <div className="bg-white border-b sticky top-[72px] z-10">
+                        <div className="max-w-4xl mx-auto px-4">
+                            <div className="flex gap-2 overflow-x-auto">
+                                <button
+                                    onClick={() => setView('home')}
+                                    className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                        view === 'home'
+                                            ? 'text-lime-600 border-b-2 border-lime-600'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                    }`}
+                                >
+                                    🏠 Home
+                                </button>
+                                <button
+                                    onClick={() => setView('members')}
+                                    className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                        view === 'members'
+                                            ? 'text-lime-600 border-b-2 border-lime-600'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                    }`}
+                                >
+                                    👥 Members
+                                </button>
+                                <button
+                                    onClick={() => setView('rules')}
+                                    className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                        view === 'rules'
+                                            ? 'text-lime-600 border-b-2 border-lime-600'
+                                            : 'text-gray-600 hover:text-gray-800'
+                                    }`}
+                                >
+                                    📋 House Rules
+                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => setView('admin')}
+                                        className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                            view === 'admin'
+                                                ? 'text-lime-600 border-b-2 border-lime-600'
+                                                : 'text-gray-600 hover:text-gray-800'
+                                        }`}
+                                    >
+                                        🔐 Admin
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="max-w-4xl mx-auto px-4 py-6">
+                        {/* HOME VIEW */}
+                        {view === 'home' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800">📅 Playdates</h2>
+                                    <button
+                                        onClick={() => setShowCreatePlaydate(true)}
+                                        className="px-4 py-2 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
+                                    >
+                                        ➕ Create Playdate
+                                    </button>
+                                </div>
+
+                                {/* Week Navigation */}
+                                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow">
+                                    <button
+                                        onClick={() => {
+                                            const prev = new Date(currentWeekStart);
+                                            prev.setDate(prev.getDate() - 7);
+                                            setCurrentWeekStart(prev);
+                                        }}
+                                        className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        ← Prev
+                                    </button>
+                                    
+                                    <div className="text-center">
+                                        <p className="font-semibold text-gray-800">
+                                            {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
+                                            {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </p>
+                                        <button
+                                            onClick={() => setCurrentWeekStart(getWeekStart(new Date()))}
+                                            className="text-sm text-lime-600 hover:underline"
+                                        >
+                                            Today
+                                        </button>
+                                    </div>
+                                    
+                                    <button
+                                        onClick={() => {
+                                            const next = new Date(currentWeekStart);
+                                            next.setDate(next.getDate() + 7);
+                                            setCurrentWeekStart(next);
+                                        }}
+                                        className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+
+                                {/* Playdates List */}
+                                {playdatesThisWeek.length === 0 ? (
+                                    <div className="text-center py-12 bg-white rounded-lg shadow">
+                                        <p className="text-gray-500 text-lg mb-4">No playdates this week</p>
+                                        <button
+                                            onClick={() => setShowCreatePlaydate(true)}
+                                            className="px-6 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
+                                        >
+                                            Create First Playdate
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {playdatesThisWeek
+                                            .sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time))
+                                            .map(playdate => (
+                                                <PlaydateCard key={playdate.id} playdate={playdate} />
+                                            ))}
+                                    </div>
+                                )}
+
+                                {showCreatePlaydate && (
+                                    <CreatePlaydateModal onClose={() => setShowCreatePlaydate(false)} />
+                                )}
+                            </div>
+                        )}
+
+                        {/* MEMBERS VIEW */}
+                        {view === 'members' && (
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-6">👥 Community Members</h2>
+                                
+                                {membersLoading ? (
+                                    <div className="text-center py-8">
+                                        <p className="text-gray-500">Loading members...</p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                                        <div className="bg-gray-100 px-6 py-3 border-b">
+                                            <div className="font-semibold text-gray-700">Name</div>
+                                        </div>
+                                        <div className="divide-y">
+                                            {allMembers
+                                                .filter(m => !m.disabled)
+                                                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                                .map(member => (
+                                                    <div key={member.uid} className="px-6 py-4 hover:bg-gray-50">
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <p className="font-medium text-gray-800">{member.name}</p>
+                                                                {member.role === 'admin' && (
+                                                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Admin</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* HOUSE RULES VIEW */}
+                        {view === 'rules' && (
+                            <div>
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-800">📋 House Rules</h2>
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => editingRules ? saveHouseRules() : setEditingRules(true)}
+                                            className="px-4 py-2 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
+                                        >
+                                            {editingRules ? '💾 Save' : '✏️ Edit'}
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="bg-white rounded-xl shadow-md p-6">
+                                    {editingRules ? (
+                                        <textarea
+                                            value={houseRules}
+                                            onChange={(e) => setHouseRules(e.target.value)}
+                                            className="w-full h-96 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500 font-mono text-sm"
+                                        />
+                                    ) : (
+                                        <pre className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed">
+                                            {houseRules}
+                                        </pre>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ADMIN VIEW */}
+                        {view === 'admin' && isAdmin && (
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-6">🔐 Admin Dashboard</h2>
+                                
+                                <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-6">
+                                    <p className="text-sm font-semibold text-gray-700 mb-1">⚠️ Admin Actions</p>
+                                    <p className="text-xs text-gray-600">All member management actions require your admin password for verification.</p>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowAddMemberModal(true)}
+                                    className="w-full mb-6 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
+                                >
+                                    ➕ Add Member
+                                </button>
+
+                                {/* Members List */}
+                                <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                                    <div className="bg-gray-100 px-6 py-3 border-b">
+                                        <div className="grid grid-cols-3 gap-4 font-semibold text-gray-700">
+                                            <div>Name</div>
+                                            <div>Status</div>
+                                            <div className="text-right">Actions</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {membersLoading ? (
+                                        <div className="p-8 text-center text-gray-500">
+                                            <div className="animate-pulse">Loading members...</div>
+                                        </div>
+                                    ) : allMembers.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-500">
+                                            No members found
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y">
+                                            {allMembers.map((member) => (
+                                                <div key={member.uid} className="px-6 py-4 hover:bg-gray-50">
+                                                    <div className="grid grid-cols-3 gap-4 items-center">
+                                                        <div className="font-medium text-gray-800">
+                                                            {member.name}
+                                                            {member.role === 'admin' && (
+                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Admin</span>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            {member.disabled ? (
+                                                                <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Disabled</span>
+                                                            ) : (
+                                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-right">
+                                                            {member.uid !== user.uid && !member.disabled && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedMember(member);
+                                                                        setShowRemoveMemberModal(true);
+                                                                    }}
+                                                                    className="text-sm text-red-600 hover:text-red-800 font-medium"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Add Member Modal */}
+                                {showAddMemberModal && (
+                                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                        <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">➕ Add New Member</h3>
+                                            
+                                            <form onSubmit={handleAddMember}>
+                                                <div className="mb-4">
+                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                        Member Name (Mom or Nanny)
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="e.g., Sara, Andrea, Glydel"
+                                                        value={newMemberName}
+                                                        onChange={(e) => setNewMemberName(e.target.value)}
+                                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                        required
+                                                    />
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        This name will be used for login
+                                                    </p>
+                                                </div>
+
+                                                <div className="mb-4">
+                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                        Initial Password (min 6 characters)
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Temporary password"
+                                                        value={newMemberPassword}
+                                                        onChange={(e) => setNewMemberPassword(e.target.value)}
+                                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                        required
+                                                        minLength={6}
+                                                    />
+                                                    <p className="text-xs text-gray-500 mt-1">Member can change this after first login</p>
+                                                </div>
+
+                                                <div className="mb-4 bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                        🔐 Confirm Your Admin Password
+                                                    </label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="Enter your admin password"
+                                                        value={adminPasswordPrompt}
+                                                        onChange={(e) => {
+                                                            setAdminPasswordPrompt(e.target.value);
+                                                            setAdminPasswordError('');
+                                                        }}
+                                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                        required
+                                                    />
+                                                    <p className="text-xs text-gray-600 mt-1">Required for security verification</p>
+                                                </div>
+
+                                                {adminPasswordError && (
+                                                    <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm">
+                                                        {adminPasswordError}
+                                                    </div>
+                                                )}
+
+                                                {addMemberError && (
+                                                    <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm">
+                                                        {addMemberError}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setShowAddMemberModal(false);
+                                                            setNewMemberName('');
+                                                            setNewMemberPassword('');
+                                                            setAdminPasswordPrompt('');
+                                                            setAddMemberError('');
+                                                            setAdminPasswordError('');
+                                                        }}
+                                                        className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        disabled={authLoading}
+                                                        className="flex-1 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold disabled:opacity-50"
+                                                    >
+                                                        {authLoading ? 'Adding...' : 'Add Member'}
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Remove Member Modal */}
+                                {showRemoveMemberModal && selectedMember && (
+                                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                        <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+                                            <h3 className="text-2xl font-bold text-gray-800 mb-4">Remove Member</h3>
+                                            
+                                            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                                <p className="text-sm text-gray-700 mb-2">
+                                                    Are you sure you want to remove:
+                                                </p>
+                                                <p className="font-bold text-gray-800 text-lg">{selectedMember.name}</p>
+                                            </div>
+
+                                            <div className="mb-4 bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                    🔐 Confirm Your Admin Password
+                                                </label>
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter your admin password"
+                                                    value={adminPasswordPrompt}
+                                                    onChange={(e) => {
+                                                        setAdminPasswordPrompt(e.target.value);
+                                                        setAdminPasswordError('');
+                                                    }}
+                                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                />
+                                            </div>
+
+                                            {adminPasswordError && (
+                                                <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm">
+                                                    {adminPasswordError}
+                                                </div>
+                                            )}
+
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={() => {
+                                                        setShowRemoveMemberModal(false);
+                                                        setSelectedMember(null);
+                                                        setAdminPasswordPrompt('');
+                                                        setAdminPasswordError('');
+                                                    }}
+                                                    className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={handleRemoveMember}
+                                                    className="flex-1 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold"
+                                                >
+                                                    Remove Member
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
