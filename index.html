@@ -703,33 +703,7 @@
                     const snapshot = await membersRef.once('value');
                     if (snapshot.val() === null) {
                         // Only seed if database is empty
-                        const seedMembers = [
-                            // 2023 babies
-                            { name: 'Andrea', nanny: 'Glydel', babyName: 'Camilla', babyGender: 'female', dob: '2023-09-18', villa: '559', community: 'Casa Dora' },
-                            { name: 'Angela', nanny: 'Chathu', babyName: 'Macy Loos', babyGender: 'female', dob: '2023-06-25', villa: '125', community: 'Casa Dora' },
-                            { name: 'Charlotte', nanny: 'Merline', babyName: 'Rory', babyGender: 'male', dob: '2023-10-29', villa: '561', community: 'Casa Dora' },
-                            { name: 'Huda', nanny: 'Aysha', babyName: 'Yahya', babyGender: 'male', dob: '2023-12-12', villa: '202', community: 'Bella Casa' },
-                            { name: 'Marina', nanny: 'Jasmin', babyName: 'Leia', babyGender: 'female', dob: '2023-09-04', villa: '473', community: 'Casa Dora' },
-                            { name: 'Mia', nanny: 'Annabelle', babyName: 'Pippa', babyGender: 'female', dob: '2023-12-01', villa: '285', community: 'Casa Dora' },
-                            { name: 'Mona', nanny: 'Desta', babyName: 'Zein', babyGender: 'male', dob: '2023-10-09', villa: '167', community: 'Casa Dora' },
-                            { name: 'Nina', nanny: 'Marigold', babyName: 'Brin', babyGender: 'male', dob: '2023-10-24', villa: '431', community: 'Casa Dora' },
-                            { name: 'Sarah', nanny: 'Anju', babyName: 'Faye', babyGender: 'female', dob: '2023-05-28', villa: '321', community: 'Casa Viva' },
-                            { name: 'Sasha', nanny: 'Marilou', babyName: 'Lettie', babyGender: 'female', dob: '2023-08-29', villa: '17', community: 'Casa Dora' },
-                            { name: 'Sophie', nanny: 'Angeles', babyName: 'Riley', babyGender: 'male', dob: '2023-06-21', villa: '343', community: 'Casa Dora' },
-                            { name: 'Vlasta', nanny: 'Elizabeth', babyName: 'Stella', babyGender: 'female', dob: '2023-11-30', villa: '466', community: 'Casa Dora' },
-                            // 2024 babies
-                            { name: 'Arshi', nanny: 'Pasang', babyName: 'Mizla', babyGender: 'female', dob: '2024-07-09', villa: '172', community: 'Casa Dora' },
-                            { name: 'Asia', nanny: 'Tess & Ana', babyName: 'Mayed', babyGender: 'male', dob: '2024-10-17', villa: '150', community: 'Casa Viva' },
-                            { name: 'Crystal', nanny: 'Pinky', babyName: 'Theunis (TC)', babyGender: 'male', dob: '2024-05-08', villa: '579', community: 'Casa Dora' },
-                            { name: 'Dani', nanny: 'Olivia', babyName: 'Reef', babyGender: 'female', dob: '2024-07-29', villa: '536', community: 'Casa Dora' },
-                            { name: 'Ghenwa', nanny: 'Joy', babyName: 'Kamal', babyGender: 'male', dob: '2024-03-15', villa: '67', community: 'Casa Dora' },
-                            { name: 'Hannah', nanny: '', babyName: 'Arabella', babyGender: 'female', dob: '2024-10-17', villa: '414', community: 'Casa Dora' },
-                            { name: 'Leanne', nanny: 'Rowena', babyName: 'Romy', babyGender: 'female', dob: '2024-07-09', villa: '9', community: 'Bella Casa' },
-                            { name: 'Laura', nanny: 'Lisa', babyName: 'Liam', babyGender: 'male', dob: '2024-06-27', villa: '313', community: 'Bella Casa' },
-                            { name: 'Melissa', nanny: 'Rose', babyName: 'Eloise', babyGender: 'female', dob: '2024-05-17', villa: '267', community: 'Casa Dora' },
-                            { name: 'Rahaf', nanny: '', babyName: 'Basheer', babyGender: 'male', dob: '2024-03-01', villa: '535', community: 'Casa Dora' },
-                            { name: 'Sara', nanny: 'Cherry', babyName: 'Bailey', babyGender: 'female', dob: '2024-06-10', villa: '186', community: 'Casa Dora' }
-                        ];
+                        const seedMembers = [];
 
                         for (const member of seedMembers) {
                             const email = member.name.toLowerCase().replace(/\s+/g, '.') + '@nurturenannies.local';
