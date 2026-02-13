@@ -105,6 +105,7 @@
             const [playdates, setPlaydates] = useState([]);
             const [currentWeekStart, setCurrentWeekStart] = useState(getWeekStart(new Date()));
             const [showCreatePlaydate, setShowCreatePlaydate] = useState(false);
+            const [showRequestPlaydate, setShowRequestPlaydate] = useState(false);
 
             // Members states
             const [allMembers, setAllMembers] = useState([]);
@@ -410,6 +411,144 @@
                 );
             }
 
+            function RequestPlaydateModal({ onClose }) {
+                const [date, setDate] = useState('');
+                const [startTime, setStartTime] = useState('08:00');
+                const [endTime, setEndTime] = useState('09:00');
+                const [location, setLocation] = useState('');
+                const [villa, setVilla] = useState('');
+                const [notes, setNotes] = useState('');
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+
+                    const newPlaydate = {
+                        date,
+                        time: startTime,
+                        endTime,
+                        location: location || `Villa ${villa}`,
+                        villa,
+                        hostUid: user.uid,
+                        hostName: user.displayName || displayName,
+                        notes,
+                        createdAt: new Date().toISOString(),
+                        attendees: {
+                            [user.uid]: true
+                        },
+                        isHostRequest: true
+                    };
+
+                    await database.ref('playdates').push(newPlaydate);
+                    onClose();
+                };
+
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                            <h3 className="text-2xl font-bold text-gray-800 mb-4">🏡 Request to Host Playdate</h3>
+
+                            <form onSubmit={handleSubmit}>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        📅 Date
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={date}
+                                        onChange={(e) => setDate(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="mb-4 grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            ⏰ Start Time
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={startTime}
+                                            onChange={(e) => setStartTime(e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            ⏰ End Time
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={endTime}
+                                            onChange={(e) => setEndTime(e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Villa Number
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={villa}
+                                        onChange={(e) => setVilla(e.target.value)}
+                                        placeholder="e.g., 579"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Location Name (Optional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={location}
+                                        onChange={(e) => setLocation(e.target.value)}
+                                        placeholder="e.g., TC Villa, Pool Area"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                    />
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Notes (Optional)
+                                    </label>
+                                    <textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        placeholder="Any additional details..."
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                        rows="3"
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
+                                    >
+                                        Submit Request
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
             function PlaydateCard({ playdate }) {
                 const [isAttending, setIsAttending] = useState(false);
                 const [attendeeCount, setAttendeeCount] = useState(0);
@@ -693,6 +832,49 @@
                 }
             };
 
+            // Initialize seed data
+            const initializeSeedData = async () => {
+                try {
+                    const membersRef = database.ref('users');
+                    const snapshot = await membersRef.once('value');
+                    if (snapshot.val() === null) {
+                        // Only seed if database is empty
+                        const seedMembers = [];
+
+                        for (const member of seedMembers) {
+                            const email = member.name.toLowerCase().replace(/\s+/g, '.') + '@nurturenannies.local';
+                            try {
+                                const result = await auth.createUserWithEmailAndPassword(email, 'TempPass123');
+                                await database.ref(`users/${result.user.uid}`).set({
+                                    name: member.name,
+                                    nanny: member.nanny,
+                                    babyName: member.babyName,
+                                    babyGender: member.babyGender,
+                                    dob: member.dob,
+                                    villa: member.villa,
+                                    community: member.community,
+                                    email: email,
+                                    role: 'mom',
+                                    createdAt: new Date().toISOString(),
+                                    createdBy: 'system'
+                                });
+                            } catch (err) {
+                                console.log(`Member ${member.name} may already exist`);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error initializing seed data:', error);
+                }
+            };
+
+            // Call on component mount
+            useEffect(() => {
+                if (isAdmin && user) {
+                    initializeSeedData();
+                }
+            }, [isAdmin, user]);
+
             // ===================================
             // RENDER
             // ===================================
@@ -902,34 +1084,79 @@
                                             prev.setDate(prev.getDate() - 7);
                                             setCurrentWeekStart(prev);
                                         }}
-                                        className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                        className="px-4 py-2 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 font-semibold transition-colors"
                                     >
-                                        ← Prev
+                                        ← Prev Week
                                     </button>
-                                    
+
                                     <div className="text-center">
-                                        <p className="font-semibold text-gray-800">
+                                        <p className="font-semibold text-gray-800 text-lg">
                                             {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
-                                            {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                         </p>
                                         <button
                                             onClick={() => setCurrentWeekStart(getWeekStart(new Date()))}
-                                            className="text-sm text-lime-600 hover:underline"
+                                            className="text-sm text-lime-600 hover:underline mt-1"
                                         >
-                                            Today
+                                            Jump to Today
                                         </button>
                                     </div>
-                                    
+
                                     <button
                                         onClick={() => {
                                             const next = new Date(currentWeekStart);
                                             next.setDate(next.getDate() + 7);
                                             setCurrentWeekStart(next);
                                         }}
-                                        className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                        className="px-4 py-2 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 font-semibold transition-colors"
                                     >
-                                        Next →
+                                        Next Week →
                                     </button>
+                                </div>
+
+                                {/* Weekly Calendar Grid */}
+                                <div className="mb-8 bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div className="grid grid-cols-7 gap-0">
+                                        {weekDays.map((day, idx) => {
+                                            const dayPlaydates = playdates.filter(p => {
+                                                const pDate = new Date(p.date);
+                                                return pDate.toDateString() === day.toDateString();
+                                            }).sort((a, b) => a.time.localeCompare(b.time));
+
+                                            return (
+                                                <div key={idx} className={`border ${idx < 6 ? 'border-r' : ''} border-b p-4 min-h-32 ${day.toDateString() === new Date().toDateString() ? 'bg-lime-50' : 'bg-white'}`}>
+                                                    <div className="mb-3">
+                                                        <p className="font-bold text-lg text-gray-800">
+                                                            {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                                                        </p>
+                                                        <p className="text-2xl font-bold text-lime-600">
+                                                            {day.getDate()}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            {day.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                                        </p>
+                                                    </div>
+
+                                                    {dayPlaydates.length > 0 ? (
+                                                        <div className="space-y-2">
+                                                            {dayPlaydates.map(pd => (
+                                                                <div key={pd.id} className={`rounded p-2 text-xs ${pd.isHostRequest ? 'bg-yellow-100 border-l-2 border-yellow-400' : 'bg-lime-100 border-l-2 border-lime-500'}`}>
+                                                                    <p className="font-semibold text-gray-800">👤 {pd.hostName}</p>
+                                                                    {pd.babyName && <p className="text-gray-700">👶 {pd.babyName}</p>}
+                                                                    <p className="text-gray-700">🕐 {pd.time}{pd.endTime ? ` - ${pd.endTime}` : ''}</p>
+                                                                    <p className="text-gray-700">🏠 Villa {pd.villa}</p>
+                                                                    {pd.community && <p className="text-gray-600">📍 {pd.community}</p>}
+                                                                    {pd.isHostRequest && <p className="text-yellow-700 font-semibold">🏡 Host Request</p>}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-gray-400 italic">No playdates</p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
                                 {/* Playdates List */}
@@ -946,7 +1173,8 @@
                                         )}
                                     </div>
                                 ) : (
-                                    <div>
+                                    <div className="mb-6">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-4">📋 Playdate Details</h3>
                                         {playdatesThisWeek
                                             .sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time))
                                             .map(playdate => (
@@ -957,6 +1185,10 @@
 
                                 {showCreatePlaydate && (
                                     <CreatePlaydateModal onClose={() => setShowCreatePlaydate(false)} />
+                                )}
+
+                                {showRequestPlaydate && (
+                                    <RequestPlaydateModal onClose={() => setShowRequestPlaydate(false)} />
                                 )}
                             </div>
                         )}
