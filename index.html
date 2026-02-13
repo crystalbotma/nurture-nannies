@@ -119,6 +119,7 @@
             const [newMemberName, setNewMemberName] = useState('');
             const [newMemberPassword, setNewMemberPassword] = useState('');
             const [newMemberRole, setNewMemberRole] = useState('mom'); // mom or nanny
+            const [newNannyName, setNewNannyName] = useState('');
             const [newBabyName, setNewBabyName] = useState('');
             const [newBabyDob, setNewBabyDob] = useState('');
             const [newVilla, setNewVilla] = useState('');
@@ -626,6 +627,7 @@
                         createdAt: new Date().toISOString(),
                         createdBy: user.uid,
                         role: newMemberRole,
+                        nanny: newNannyName,
                         babyName: newBabyName,
                         dob: newBabyDob,
                         villa: newVilla,
@@ -643,6 +645,7 @@
                     setNewMemberName('');
                     setNewMemberPassword('');
                     setNewMemberRole('mom');
+                    setNewNannyName('');
                     setNewBabyName('');
                     setNewBabyDob('');
                     setNewVilla('');
@@ -692,6 +695,75 @@
                     setAdminPasswordError(`❌ Error: ${error.message}`);
                 }
             };
+
+            // Initialize seed data
+            const initializeSeedData = async () => {
+                try {
+                    const membersRef = database.ref('users');
+                    const snapshot = await membersRef.once('value');
+                    if (snapshot.val() === null) {
+                        // Only seed if database is empty
+                        const seedMembers = [
+                            // 2023 babies
+                            { name: 'Andrea', nanny: 'Glydel', babyName: 'Camilla', babyGender: 'female', dob: '2023-09-18', villa: '559', community: 'Casa Dora' },
+                            { name: 'Angela', nanny: 'Chathu', babyName: 'Macy Loos', babyGender: 'female', dob: '2023-06-25', villa: '125', community: 'Casa Dora' },
+                            { name: 'Charlotte', nanny: 'Merline', babyName: 'Rory', babyGender: 'male', dob: '2023-10-29', villa: '561', community: 'Casa Dora' },
+                            { name: 'Huda', nanny: 'Aysha', babyName: 'Yahya', babyGender: 'male', dob: '2023-12-12', villa: '202', community: 'Bella Casa' },
+                            { name: 'Marina', nanny: 'Jasmin', babyName: 'Leia', babyGender: 'female', dob: '2023-09-04', villa: '473', community: 'Casa Dora' },
+                            { name: 'Mia', nanny: 'Annabelle', babyName: 'Pippa', babyGender: 'female', dob: '2023-12-01', villa: '285', community: 'Casa Dora' },
+                            { name: 'Mona', nanny: 'Desta', babyName: 'Zein', babyGender: 'male', dob: '2023-10-09', villa: '167', community: 'Casa Dora' },
+                            { name: 'Nina', nanny: 'Marigold', babyName: 'Brin', babyGender: 'male', dob: '2023-10-24', villa: '431', community: 'Casa Dora' },
+                            { name: 'Sarah', nanny: 'Anju', babyName: 'Faye', babyGender: 'female', dob: '2023-05-28', villa: '321', community: 'Casa Viva' },
+                            { name: 'Sasha', nanny: 'Marilou', babyName: 'Lettie', babyGender: 'female', dob: '2023-08-29', villa: '17', community: 'Casa Dora' },
+                            { name: 'Sophie', nanny: 'Angeles', babyName: 'Riley', babyGender: 'male', dob: '2023-06-21', villa: '343', community: 'Casa Dora' },
+                            { name: 'Vlasta', nanny: 'Elizabeth', babyName: 'Stella', babyGender: 'female', dob: '2023-11-30', villa: '466', community: 'Casa Dora' },
+                            // 2024 babies
+                            { name: 'Arshi', nanny: 'Pasang', babyName: 'Mizla', babyGender: 'female', dob: '2024-07-09', villa: '172', community: 'Casa Dora' },
+                            { name: 'Asia', nanny: 'Tess & Ana', babyName: 'Mayed', babyGender: 'male', dob: '2024-10-17', villa: '150', community: 'Casa Viva' },
+                            { name: 'Crystal', nanny: 'Pinky', babyName: 'Theunis (TC)', babyGender: 'male', dob: '2024-05-08', villa: '579', community: 'Casa Dora' },
+                            { name: 'Dani', nanny: 'Olivia', babyName: 'Reef', babyGender: 'female', dob: '2024-07-29', villa: '536', community: 'Casa Dora' },
+                            { name: 'Ghenwa', nanny: 'Joy', babyName: 'Kamal', babyGender: 'male', dob: '2024-03-15', villa: '67', community: 'Casa Dora' },
+                            { name: 'Hannah', nanny: '', babyName: 'Arabella', babyGender: 'female', dob: '2024-10-17', villa: '414', community: 'Casa Dora' },
+                            { name: 'Leanne', nanny: 'Rowena', babyName: 'Romy', babyGender: 'female', dob: '2024-07-09', villa: '9', community: 'Bella Casa' },
+                            { name: 'Laura', nanny: 'Lisa', babyName: 'Liam', babyGender: 'male', dob: '2024-06-27', villa: '313', community: 'Bella Casa' },
+                            { name: 'Melissa', nanny: 'Rose', babyName: 'Eloise', babyGender: 'female', dob: '2024-05-17', villa: '267', community: 'Casa Dora' },
+                            { name: 'Rahaf', nanny: '', babyName: 'Basheer', babyGender: 'male', dob: '2024-03-01', villa: '535', community: 'Casa Dora' },
+                            { name: 'Sara', nanny: 'Cherry', babyName: 'Bailey', babyGender: 'female', dob: '2024-06-10', villa: '186', community: 'Casa Dora' }
+                        ];
+
+                        for (const member of seedMembers) {
+                            const email = member.name.toLowerCase().replace(/\s+/g, '.') + '@nurturenannies.local';
+                            try {
+                                const result = await auth.createUserWithEmailAndPassword(email, 'TempPass123');
+                                await database.ref(`users/${result.user.uid}`).set({
+                                    name: member.name,
+                                    nanny: member.nanny,
+                                    babyName: member.babyName,
+                                    babyGender: member.babyGender,
+                                    dob: member.dob,
+                                    villa: member.villa,
+                                    community: member.community,
+                                    email: email,
+                                    role: 'mom',
+                                    createdAt: new Date().toISOString(),
+                                    createdBy: 'system'
+                                });
+                            } catch (err) {
+                                console.log(`Member ${member.name} may already exist`);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error initializing seed data:', error);
+                }
+            };
+
+            // Call on component mount
+            useEffect(() => {
+                if (isAdmin && user) {
+                    initializeSeedData();
+                }
+            }, [isAdmin, user]);
 
             // ===================================
             // RENDER
@@ -895,41 +967,83 @@
                                 </div>
 
                                 {/* Week Navigation */}
-                                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
                                     <button
                                         onClick={() => {
                                             const prev = new Date(currentWeekStart);
                                             prev.setDate(prev.getDate() - 7);
                                             setCurrentWeekStart(prev);
                                         }}
-                                        className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                        className="px-4 py-2 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 font-semibold transition-colors"
                                     >
-                                        ← Prev
+                                        ← Prev Week
                                     </button>
-                                    
+
                                     <div className="text-center">
-                                        <p className="font-semibold text-gray-800">
+                                        <p className="font-semibold text-gray-800 text-lg">
                                             {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
-                                            {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                         </p>
                                         <button
                                             onClick={() => setCurrentWeekStart(getWeekStart(new Date()))}
-                                            className="text-sm text-lime-600 hover:underline"
+                                            className="text-sm text-lime-600 hover:underline mt-1"
                                         >
-                                            Today
+                                            Jump to Today
                                         </button>
                                     </div>
-                                    
+
                                     <button
                                         onClick={() => {
                                             const next = new Date(currentWeekStart);
                                             next.setDate(next.getDate() + 7);
                                             setCurrentWeekStart(next);
                                         }}
-                                        className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+                                        className="px-4 py-2 bg-lime-100 text-lime-700 rounded-lg hover:bg-lime-200 font-semibold transition-colors"
                                     >
-                                        Next →
+                                        Next Week →
                                     </button>
+                                </div>
+
+                                {/* Weekly Calendar Grid */}
+                                <div className="mb-8 bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div className="grid grid-cols-7 gap-0">
+                                        {weekDays.map((day, idx) => {
+                                            const dayPlaydates = playdates.filter(p => {
+                                                const pDate = new Date(p.date);
+                                                return pDate.toDateString() === day.toDateString();
+                                            }).sort((a, b) => a.time.localeCompare(b.time));
+
+                                            return (
+                                                <div key={idx} className={`border ${idx < 6 ? 'border-r' : ''} border-b p-4 min-h-32 ${day.toDateString() === new Date().toDateString() ? 'bg-lime-50' : 'bg-white'}`}>
+                                                    <div className="mb-3">
+                                                        <p className="font-bold text-lg text-gray-800">
+                                                            {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                                                        </p>
+                                                        <p className="text-2xl font-bold text-lime-600">
+                                                            {day.getDate()}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            {day.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                                        </p>
+                                                    </div>
+
+                                                    {dayPlaydates.length > 0 ? (
+                                                        <div className="space-y-2">
+                                                            {dayPlaydates.map(pd => (
+                                                                <div key={pd.id} className="bg-lime-100 rounded p-2 text-xs">
+                                                                    <p className="font-semibold text-gray-800">📍 {pd.hostName}</p>
+                                                                    <p className="text-gray-700">🕐 {pd.time}</p>
+                                                                    {pd.babyName && <p className="text-gray-700">👶 {pd.babyName}</p>}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-gray-400 italic">No playdates</p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
                                 {/* Playdates List */}
@@ -946,7 +1060,8 @@
                                         )}
                                     </div>
                                 ) : (
-                                    <div>
+                                    <div className="mb-6">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-4">📋 Playdate Details</h3>
                                         {playdatesThisWeek
                                             .sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time))
                                             .map(playdate => (
@@ -971,75 +1086,47 @@
                                         <p className="text-gray-500">Loading members...</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-12">
-                                        {/* MOMS SECTION */}
-                                        <div>
-                                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                                👩‍👧‍👦 Mommies ({allMembers.filter(m => !m.disabled && m.role === 'mom').length})
-                                            </h3>
-                                            <div className="space-y-3">
+                                    <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="bg-gradient-to-r from-lime-100 to-green-100 border-b">
+                                                    <th className="px-6 py-4 text-left font-semibold text-gray-800">👩 Mom</th>
+                                                    <th className="px-6 py-4 text-left font-semibold text-gray-800">👵 Nanny</th>
+                                                    <th className="px-6 py-4 text-left font-semibold text-gray-800">👶 Baby</th>
+                                                    <th className="px-6 py-4 text-left font-semibold text-gray-800">🏠 Villa</th>
+                                                    <th className="px-6 py-4 text-left font-semibold text-gray-800">🏘️ Community</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
                                                 {allMembers
                                                     .filter(m => !m.disabled && m.role === 'mom')
-                                                    .sort((a, b) => {
-                                                        // Sort by DOB year, then alphabetically by mom name
-                                                        const yearA = a.dob ? new Date(a.dob).getFullYear() : 9999;
-                                                        const yearB = b.dob ? new Date(b.dob).getFullYear() : 9999;
-                                                        if (yearB !== yearA) return yearB - yearA;
-                                                        return (a.name || '').localeCompare(b.name || '');
-                                                    })
-                                                    .map(member => (
-                                                        <div key={member.uid} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
-                                                            <div className="flex items-start justify-between">
-                                                                <div className="flex-1">
-                                                                    <p className="font-semibold text-gray-800 text-lg">{member.name}</p>
-                                                                    {member.babyName && (
-                                                                        <div className="mt-2 space-y-1 text-sm text-gray-600">
-                                                                            <p><span className="font-medium">👶 Baby:</span> {member.babyName} {member.babyGender === 'male' ? '💙' : '🌸'}</p>
-                                                                            {member.dob && <p><span className="font-medium">🎂 DOB:</span> {member.dob}</p>}
-                                                                            {member.villa && <p><span className="font-medium">🏠 Villa:</span> {member.villa}</p>}
-                                                                            {member.community && <p><span className="font-medium">🏘️ Community:</span> {member.community}</p>}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                {allMembers.filter(m => !m.disabled && m.role === 'mom').length === 0 && (
-                                                    <p className="text-gray-500 italic">No mommies added yet</p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* NANNIES SECTION */}
-                                        <div>
-                                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                                👵‍👧 Nannies ({allMembers.filter(m => !m.disabled && m.role === 'nanny').length})
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {allMembers
-                                                    .filter(m => !m.disabled && m.role === 'nanny')
                                                     .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                                                     .map(member => (
-                                                        <div key={member.uid} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
-                                                            <div className="flex items-start justify-between">
-                                                                <div className="flex-1">
-                                                                    <p className="font-semibold text-gray-800 text-lg">{member.name}</p>
-                                                                    {(member.babyName || member.villa || member.community) && (
-                                                                        <div className="mt-2 space-y-1 text-sm text-gray-600">
-                                                                            {member.babyName && <p><span className="font-medium">👶 Associated with:</span> {member.babyName}</p>}
-                                                                            {member.villa && <p><span className="font-medium">🏠 Villa:</span> {member.villa}</p>}
-                                                                            {member.community && <p><span className="font-medium">🏘️ Community:</span> {member.community}</p>}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                        <tr key={member.uid} className="hover:bg-lime-50 transition-colors">
+                                                            <td className="px-6 py-4 font-medium text-gray-800">{member.name}</td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {member.nanny || '—'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {member.babyName ? `${member.babyName} ${member.babyGender === 'male' ? '💙' : '🌸'}` : '—'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {member.villa || '—'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {member.community || '—'}
+                                                            </td>
+                                                        </tr>
                                                     ))}
-                                                {allMembers.filter(m => !m.disabled && m.role === 'nanny').length === 0 && (
-                                                    <p className="text-gray-500 italic">No nannies added yet</p>
+                                                {allMembers.filter(m => !m.disabled && m.role === 'mom').length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                                                            No mommies added yet
+                                                        </td>
+                                                    </tr>
                                                 )}
-                                            </div>
-                                        </div>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 )}
                             </div>
@@ -1192,6 +1279,19 @@
                                                     <>
                                                         <div className="mb-4">
                                                             <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                                👵 Nanny Name (Optional)
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="e.g., Glydel, Anju"
+                                                                value={newNannyName}
+                                                                onChange={(e) => setNewNannyName(e.target.value)}
+                                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                            />
+                                                        </div>
+
+                                                        <div className="mb-4">
+                                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
                                                                 👶 Baby Name
                                                             </label>
                                                             <input
@@ -1317,6 +1417,7 @@
                                                             setNewMemberName('');
                                                             setNewMemberPassword('');
                                                             setNewMemberRole('mom');
+                                                            setNewNannyName('');
                                                             setNewBabyName('');
                                                             setNewBabyDob('');
                                                             setNewVilla('');
