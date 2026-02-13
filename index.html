@@ -10,14 +10,39 @@
     <title>Nurture Nannies - Community Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * { 
-            -webkit-tap-highlight-color: transparent; 
+        * {
+            -webkit-tap-highlight-color: transparent;
             box-sizing: border-box;
         }
-        body { 
+        body {
             overscroll-behavior: none;
             margin: 0;
             padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        /* Smooth transitions */
+        button, input, select, textarea {
+            transition: all 0.2s ease;
+        }
+        /* Subtle hover effect for interactive elements */
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+        /* Card shadow elevation */
+        .card-hover {
+            transition: all 0.2s ease;
+        }
+        .card-hover:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        /* Smooth fade in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease;
         }
     </style>
 </head>
@@ -93,6 +118,12 @@
             const [showAddMemberModal, setShowAddMemberModal] = useState(false);
             const [newMemberName, setNewMemberName] = useState('');
             const [newMemberPassword, setNewMemberPassword] = useState('');
+            const [newMemberRole, setNewMemberRole] = useState('mom'); // mom or nanny
+            const [newBabyName, setNewBabyName] = useState('');
+            const [newBabyDob, setNewBabyDob] = useState('');
+            const [newVilla, setNewVilla] = useState('');
+            const [newCommunity, setNewCommunity] = useState('Casa Dora');
+            const [newBabyGender, setNewBabyGender] = useState('female'); // male or female
             const [adminPasswordPrompt, setAdminPasswordPrompt] = useState('');
             const [addMemberError, setAddMemberError] = useState('');
             const [adminPasswordError, setAdminPasswordError] = useState('');
@@ -236,15 +267,26 @@
                 const [location, setLocation] = useState('');
                 const [villa, setVilla] = useState('');
                 const [notes, setNotes] = useState('');
+                const [selectedBabyName, setSelectedBabyName] = useState('');
+
+                // Get babies for this mom
+                const myBabies = user.babyName ? [{ name: user.babyName, villa: user.villa, dob: user.dob }] : [];
+
+                const handleBabySelect = (babyName, babyVilla) => {
+                    setSelectedBabyName(babyName);
+                    setVilla(babyVilla || '');
+                    setLocation(babyVilla ? `Villa ${babyVilla}` : '');
+                };
 
                 const handleSubmit = async (e) => {
                     e.preventDefault();
-                    
+
                     const newPlaydate = {
                         date,
                         time,
                         location: location || `Villa ${villa}`,
                         villa,
+                        babyName: selectedBabyName,
                         hostUid: user.uid,
                         hostName: user.displayName || displayName,
                         notes,
@@ -261,12 +303,29 @@
                 return (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-                            <h3 className="text-2xl font-bold text-gray-800 mb-4">Create Playdate</h3>
-                            
+                            <h3 className="text-2xl font-bold text-gray-800 mb-4">🎉 Create Playdate</h3>
+
                             <form onSubmit={handleSubmit}>
+                                {myBabies.length > 0 && (
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            👶 Select Baby
+                                        </label>
+                                        <select
+                                            value={selectedBabyName}
+                                            onChange={(e) => handleBabySelect(e.target.value, user.villa)}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                            required
+                                        >
+                                            <option value="">-- Select a baby --</option>
+                                            <option value={myBabies[0].name}>{myBabies[0].name}</option>
+                                        </select>
+                                    </div>
+                                )}
+
                                 <div className="mb-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Date
+                                        📅 Date
                                     </label>
                                     <input
                                         type="date"
@@ -375,51 +434,56 @@
                 };
 
                 return (
-                    <div className="bg-white rounded-xl p-4 shadow-md border-l-4 border-lime-500 mb-4">
-                        <div className="flex justify-between items-start mb-2">
+                    <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-lime-500 mb-4 hover:shadow-md transition-all hover:-translate-y-1">
+                        <div className="flex justify-between items-start mb-3">
                             <div>
                                 <p className="text-lg font-bold text-gray-800">
                                     {new Date(playdate.date + 'T' + playdate.time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                                 </p>
-                                <p className="text-gray-600">{playdate.time}</p>
+                                <p className="text-sm font-semibold text-lime-600">{playdate.time}</p>
                             </div>
                             {isHost && (
                                 <button
                                     onClick={deletePlaydate}
-                                    className="text-red-500 hover:text-red-700 text-sm"
+                                    className="text-red-500 hover:text-red-700 text-sm font-medium hover:bg-red-50 px-2 py-1 rounded transition-colors"
                                 >
                                     🗑️ Delete
                                 </button>
                             )}
                         </div>
-                        
-                        <div className="mb-3">
+
+                        <div className="mb-3 space-y-1">
                             <p className="text-gray-700">
-                                <span className="font-semibold">📍 Location:</span> {playdate.location}
+                                <span className="font-semibold text-gray-800">📍 Location:</span> {playdate.location}
                             </p>
                             <p className="text-gray-700">
-                                <span className="font-semibold">👤 Host:</span> {playdate.hostName}
+                                <span className="font-semibold text-gray-800">👤 Host:</span> {playdate.hostName}
                             </p>
+                            {playdate.babyName && (
+                                <p className="text-gray-700">
+                                    <span className="font-semibold text-gray-800">👶 Baby:</span> {playdate.babyName}
+                                </p>
+                            )}
                             <p className="text-gray-600 text-sm">
-                                <span className="font-semibold">👥 Attending:</span> {attendeeCount} {attendeeCount === 1 ? 'family' : 'families'}
+                                <span className="font-semibold text-gray-800">👥 Attending:</span> {attendeeCount} {attendeeCount === 1 ? 'family' : 'families'}
                             </p>
                         </div>
 
                         {playdate.notes && (
-                            <p className="text-gray-600 text-sm mb-3 italic">
+                            <p className="text-gray-600 text-sm mb-3 italic px-3 py-2 bg-yellow-50 rounded-lg border-l-2 border-yellow-300">
                                 "{playdate.notes}"
                             </p>
                         )}
 
                         <button
                             onClick={toggleRSVP}
-                            className={`w-full py-2 rounded-lg font-semibold transition-colors ${
+                            className={`w-full py-2.5 rounded-lg font-semibold transition-all ${
                                 isAttending
-                                    ? 'bg-lime-500 text-gray-800 hover:bg-lime-600'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ? 'bg-lime-500 text-gray-800 hover:bg-lime-600 shadow-sm'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                         >
-                            {isAttending ? '✓ I\'m Going' : 'RSVP'}
+                            {isAttending ? '✓ I\'m Going' : '📅 RSVP'}
                         </button>
                     </div>
                 );
@@ -561,7 +625,12 @@
                         email: autoEmail,
                         createdAt: new Date().toISOString(),
                         createdBy: user.uid,
-                        role: 'member'
+                        role: newMemberRole,
+                        babyName: newBabyName,
+                        dob: newBabyDob,
+                        villa: newVilla,
+                        community: newCommunity,
+                        babyGender: newBabyGender
                     });
 
                     await database.ref('audit_logs').push({
@@ -573,9 +642,15 @@
 
                     setNewMemberName('');
                     setNewMemberPassword('');
+                    setNewMemberRole('mom');
+                    setNewBabyName('');
+                    setNewBabyDob('');
+                    setNewVilla('');
+                    setNewCommunity('Casa Dora');
+                    setNewBabyGender('female');
                     setAdminPasswordPrompt('');
                     setShowAddMemberModal(false);
-                    
+
                     alert(`✅ Member added successfully!\n\nShare these login credentials:\n\nName: ${newMemberName}\nPassword: ${newMemberPassword}\n\n(Member will login with just their name and password)`);
                 } catch (error) {
                     console.error("Error adding member:", error);
@@ -730,16 +805,21 @@
             return (
                 <div className="min-h-screen pb-20">
                     {/* Header */}
-                    <div className="bg-white shadow-md sticky top-0 z-10">
+                    <div className="bg-white shadow-md sticky top-0 z-10 border-b border-lime-100">
                         <div className="max-w-4xl mx-auto px-4 py-4">
                             <div className="flex justify-between items-center">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-800">Nurture Nannies</h1>
-                                    <p className="text-sm text-gray-600">Welcome, {user.displayName || displayName}</p>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-lime-400 to-lime-500 rounded-full flex items-center justify-center shadow-md">
+                                        <span className="text-lg">🏡</span>
+                                    </div>
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-gray-800">Nurture Nannies</h1>
+                                        <p className="text-xs text-gray-600">Welcome, <span className="font-medium text-gray-700">{user.displayName || displayName}</span></p>
+                                    </div>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-semibold"
+                                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-semibold transition-colors"
                                 >
                                     Logout
                                 </button>
@@ -748,12 +828,12 @@
                     </div>
 
                     {/* Navigation */}
-                    <div className="bg-white border-b sticky top-[72px] z-10">
+                    <div className="bg-white border-b border-gray-100 sticky top-[72px] z-10 shadow-sm">
                         <div className="max-w-4xl mx-auto px-4">
                             <div className="flex gap-2 overflow-x-auto">
                                 <button
                                     onClick={() => setView('home')}
-                                    className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                    className={`px-4 py-3 font-semibold whitespace-nowrap transition-colors ${
                                         view === 'home'
                                             ? 'text-lime-600 border-b-2 border-lime-600'
                                             : 'text-gray-600 hover:text-gray-800'
@@ -763,7 +843,7 @@
                                 </button>
                                 <button
                                     onClick={() => setView('members')}
-                                    className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                    className={`px-4 py-3 font-semibold whitespace-nowrap transition-colors ${
                                         view === 'members'
                                             ? 'text-lime-600 border-b-2 border-lime-600'
                                             : 'text-gray-600 hover:text-gray-800'
@@ -773,7 +853,7 @@
                                 </button>
                                 <button
                                     onClick={() => setView('rules')}
-                                    className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                    className={`px-4 py-3 font-semibold whitespace-nowrap transition-colors ${
                                         view === 'rules'
                                             ? 'text-lime-600 border-b-2 border-lime-600'
                                             : 'text-gray-600 hover:text-gray-800'
@@ -784,7 +864,7 @@
                                 {isAdmin && (
                                     <button
                                         onClick={() => setView('admin')}
-                                        className={`px-4 py-3 font-semibold whitespace-nowrap ${
+                                        className={`px-4 py-3 font-semibold whitespace-nowrap transition-colors ${
                                             view === 'admin'
                                                 ? 'text-lime-600 border-b-2 border-lime-600'
                                                 : 'text-gray-600 hover:text-gray-800'
@@ -803,17 +883,19 @@
                         {view === 'home' && (
                             <div>
                                 <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold text-gray-800">📅 Playdates</h2>
-                                    <button
-                                        onClick={() => setShowCreatePlaydate(true)}
-                                        className="px-4 py-2 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
-                                    >
-                                        ➕ Create Playdate
-                                    </button>
+                                    <h2 className="text-2xl font-bold text-gray-800">📅 Weekly Playdates</h2>
+                                    {user && user.role === 'mom' && (
+                                        <button
+                                            onClick={() => setShowCreatePlaydate(true)}
+                                            className="px-4 py-2 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold transition-colors"
+                                        >
+                                            ➕ Create Playdate
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Week Navigation */}
-                                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow">
+                                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                                     <button
                                         onClick={() => {
                                             const prev = new Date(currentWeekStart);
@@ -853,13 +935,15 @@
                                 {/* Playdates List */}
                                 {playdatesThisWeek.length === 0 ? (
                                     <div className="text-center py-12 bg-white rounded-lg shadow">
-                                        <p className="text-gray-500 text-lg mb-4">No playdates this week</p>
-                                        <button
-                                            onClick={() => setShowCreatePlaydate(true)}
-                                            className="px-6 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold"
-                                        >
-                                            Create First Playdate
-                                        </button>
+                                        <p className="text-gray-500 text-lg mb-4">No playdates scheduled this week</p>
+                                        {user && user.role === 'mom' && (
+                                            <button
+                                                onClick={() => setShowCreatePlaydate(true)}
+                                                className="px-6 py-3 bg-lime-500 text-gray-800 rounded-lg hover:bg-lime-600 font-semibold transition-colors"
+                                            >
+                                                ✨ Create First Playdate
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <div>
@@ -880,33 +964,81 @@
                         {/* MEMBERS VIEW */}
                         {view === 'members' && (
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-800 mb-6">👥 Community Members</h2>
-                                
+                                <h2 className="text-2xl font-bold text-gray-800 mb-8">👥 Community Members</h2>
+
                                 {membersLoading ? (
-                                    <div className="text-center py-8">
+                                    <div className="text-center py-12">
                                         <p className="text-gray-500">Loading members...</p>
                                     </div>
                                 ) : (
-                                    <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                                        <div className="bg-gray-100 px-6 py-3 border-b">
-                                            <div className="font-semibold text-gray-700">Name</div>
-                                        </div>
-                                        <div className="divide-y">
-                                            {allMembers
-                                                .filter(m => !m.disabled)
-                                                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-                                                .map(member => (
-                                                    <div key={member.uid} className="px-6 py-4 hover:bg-gray-50">
-                                                        <div className="flex justify-between items-center">
-                                                            <div>
-                                                                <p className="font-medium text-gray-800">{member.name}</p>
-                                                                {member.role === 'admin' && (
-                                                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Admin</span>
-                                                                )}
+                                    <div className="space-y-12">
+                                        {/* MOMS SECTION */}
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                                👩‍👧‍👦 Mommies ({allMembers.filter(m => !m.disabled && m.role === 'mom').length})
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {allMembers
+                                                    .filter(m => !m.disabled && m.role === 'mom')
+                                                    .sort((a, b) => {
+                                                        // Sort by DOB year, then alphabetically by mom name
+                                                        const yearA = a.dob ? new Date(a.dob).getFullYear() : 9999;
+                                                        const yearB = b.dob ? new Date(b.dob).getFullYear() : 9999;
+                                                        if (yearB !== yearA) return yearB - yearA;
+                                                        return (a.name || '').localeCompare(b.name || '');
+                                                    })
+                                                    .map(member => (
+                                                        <div key={member.uid} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                                                            <div className="flex items-start justify-between">
+                                                                <div className="flex-1">
+                                                                    <p className="font-semibold text-gray-800 text-lg">{member.name}</p>
+                                                                    {member.babyName && (
+                                                                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                                                                            <p><span className="font-medium">👶 Baby:</span> {member.babyName} {member.babyGender === 'male' ? '💙' : '🌸'}</p>
+                                                                            {member.dob && <p><span className="font-medium">🎂 DOB:</span> {member.dob}</p>}
+                                                                            {member.villa && <p><span className="font-medium">🏠 Villa:</span> {member.villa}</p>}
+                                                                            {member.community && <p><span className="font-medium">🏘️ Community:</span> {member.community}</p>}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                {allMembers.filter(m => !m.disabled && m.role === 'mom').length === 0 && (
+                                                    <p className="text-gray-500 italic">No mommies added yet</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* NANNIES SECTION */}
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                                👵‍👧 Nannies ({allMembers.filter(m => !m.disabled && m.role === 'nanny').length})
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {allMembers
+                                                    .filter(m => !m.disabled && m.role === 'nanny')
+                                                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                                    .map(member => (
+                                                        <div key={member.uid} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                                                            <div className="flex items-start justify-between">
+                                                                <div className="flex-1">
+                                                                    <p className="font-semibold text-gray-800 text-lg">{member.name}</p>
+                                                                    {(member.babyName || member.villa || member.community) && (
+                                                                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                                                                            {member.babyName && <p><span className="font-medium">👶 Associated with:</span> {member.babyName}</p>}
+                                                                            {member.villa && <p><span className="font-medium">🏠 Villa:</span> {member.villa}</p>}
+                                                                            {member.community && <p><span className="font-medium">🏘️ Community:</span> {member.community}</p>}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                {allMembers.filter(m => !m.disabled && m.role === 'nanny').length === 0 && (
+                                                    <p className="text-gray-500 italic">No nannies added yet</p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -1020,13 +1152,28 @@
                                 {/* Add Member Modal */}
                                 {showAddMemberModal && (
                                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                                        <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+                                        <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
                                             <h3 className="text-2xl font-bold text-gray-800 mb-4">➕ Add New Member</h3>
-                                            
+
                                             <form onSubmit={handleAddMember}>
                                                 <div className="mb-4">
                                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                        Member Name (Mom or Nanny)
+                                                        Role
+                                                    </label>
+                                                    <select
+                                                        value={newMemberRole}
+                                                        onChange={(e) => setNewMemberRole(e.target.value)}
+                                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                        required
+                                                    >
+                                                        <option value="mom">👩 Mom</option>
+                                                        <option value="nanny">👵 Nanny</option>
+                                                    </select>
+                                                </div>
+
+                                                <div className="mb-4">
+                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                        Member Name
                                                     </label>
                                                     <input
                                                         type="text"
@@ -1040,6 +1187,81 @@
                                                         This name will be used for login
                                                     </p>
                                                 </div>
+
+                                                {newMemberRole === 'mom' && (
+                                                    <>
+                                                        <div className="mb-4">
+                                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                                👶 Baby Name
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="e.g., Camilla, Leia"
+                                                                value={newBabyName}
+                                                                onChange={(e) => setNewBabyName(e.target.value)}
+                                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <div className="mb-4">
+                                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                                Baby Gender
+                                                            </label>
+                                                            <select
+                                                                value={newBabyGender}
+                                                                onChange={(e) => setNewBabyGender(e.target.value)}
+                                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                            >
+                                                                <option value="female">🌸 Female</option>
+                                                                <option value="male">💙 Male</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="mb-4">
+                                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                                🎂 Date of Birth
+                                                            </label>
+                                                            <input
+                                                                type="date"
+                                                                value={newBabyDob}
+                                                                onChange={(e) => setNewBabyDob(e.target.value)}
+                                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <div className="mb-4">
+                                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                                🏠 Villa Number
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="e.g., 559, 125"
+                                                                value={newVilla}
+                                                                onChange={(e) => setNewVilla(e.target.value)}
+                                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                                required
+                                                            />
+                                                        </div>
+
+                                                        <div className="mb-4">
+                                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                                🏘️ Community
+                                                            </label>
+                                                            <select
+                                                                value={newCommunity}
+                                                                onChange={(e) => setNewCommunity(e.target.value)}
+                                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-500"
+                                                                required
+                                                            >
+                                                                <option value="Casa Dora">Casa Dora</option>
+                                                                <option value="Casa Viva">Casa Viva</option>
+                                                                <option value="Bella Casa">Bella Casa</option>
+                                                            </select>
+                                                        </div>
+                                                    </>
+                                                )}
 
                                                 <div className="mb-4">
                                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1094,6 +1316,12 @@
                                                             setShowAddMemberModal(false);
                                                             setNewMemberName('');
                                                             setNewMemberPassword('');
+                                                            setNewMemberRole('mom');
+                                                            setNewBabyName('');
+                                                            setNewBabyDob('');
+                                                            setNewVilla('');
+                                                            setNewCommunity('Casa Dora');
+                                                            setNewBabyGender('female');
                                                             setAdminPasswordPrompt('');
                                                             setAddMemberError('');
                                                             setAdminPasswordError('');
