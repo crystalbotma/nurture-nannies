@@ -103,7 +103,6 @@
 
             // Playdate states
             const [playdates, setPlaydates] = useState([]);
-            const [playdateRequests, setPlaydateRequests] = useState([]);
             const [currentWeekStart, setCurrentWeekStart] = useState(getWeekStart(new Date()));
             const [showCreatePlaydate, setShowCreatePlaydate] = useState(false);
             const [showRequestPlaydate, setShowRequestPlaydate] = useState(false);
@@ -232,26 +231,6 @@
                 });
 
                 return () => playdatesRef.off();
-            }, [user]);
-
-            useEffect(() => {
-                if (!user) return;
-
-                const requestsRef = database.ref('playdate_requests');
-                requestsRef.on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        const requestsList = Object.keys(data).map(key => ({
-                            id: key,
-                            ...data[key]
-                        }));
-                        setPlaydateRequests(requestsList);
-                    } else {
-                        setPlaydateRequests([]);
-                    }
-                });
-
-                return () => requestsRef.off();
             }, [user]);
 
             function getWeekStart(date) {
@@ -444,20 +423,23 @@
                 const handleSubmit = async (e) => {
                     e.preventDefault();
 
-                    const newRequest = {
+                    const newPlaydate = {
                         date,
-                        startTime,
+                        time: startTime,
                         endTime,
                         location: location || `Villa ${villa}`,
                         villa,
-                        requestedBy: user.uid,
-                        requesterName: user.displayName || displayName,
+                        hostUid: user.uid,
+                        hostName: user.displayName || displayName,
                         notes,
                         createdAt: new Date().toISOString(),
-                        status: 'pending' // pending, accepted, declined
+                        attendees: {
+                            [user.uid]: true
+                        },
+                        isHostRequest: true
                     };
 
-                    await database.ref('playdate_requests').push(newRequest);
+                    await database.ref('playdates').push(newPlaydate);
                     onClose();
                 };
 
@@ -598,7 +580,13 @@
                                 <p className="text-lg font-bold text-gray-800">
                                     {new Date(playdate.date + 'T' + playdate.time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                                 </p>
-                                <p className="text-sm font-semibold text-lime-600">{playdate.time}</p>
+                                <p className="text-sm font-semibold text-lime-600">
+                                    {playdate.time}
+                                    {playdate.endTime && ` - ${playdate.endTime}`}
+                                </p>
+                                {playdate.isHostRequest && (
+                                    <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded mt-1 inline-block">🏡 Host Request</span>
+                                )}
                             </div>
                             {isHost && (
                                 <button
@@ -1206,44 +1194,6 @@
                                             .map(playdate => (
                                                 <PlaydateCard key={playdate.id} playdate={playdate} />
                                             ))}
-                                    </div>
-                                )}
-
-                                {/* Pending Playdate Requests */}
-                                {playdateRequests.filter(r => r.status === 'pending').length > 0 && (
-                                    <div className="mt-8 mb-6">
-                                        <h3 className="text-lg font-bold text-gray-800 mb-4">🏡 Pending Playdate Requests</h3>
-                                        <div className="space-y-3">
-                                            {playdateRequests
-                                                .filter(r => r.status === 'pending')
-                                                .sort((a, b) => new Date(a.date) - new Date(b.date))
-                                                .map(request => (
-                                                    <div key={request.id} className="bg-yellow-50 rounded-xl p-4 shadow-sm border-l-4 border-yellow-400 hover:shadow-md transition-all">
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <div>
-                                                                <p className="text-lg font-bold text-gray-800">
-                                                                    {new Date(request.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                                                                </p>
-                                                                <p className="text-sm text-gray-700"><span className="font-semibold">⏰ Time:</span> {request.startTime} - {request.endTime}</p>
-                                                            </div>
-                                                            <span className="text-xs bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full font-semibold">Pending</span>
-                                                        </div>
-                                                        <div className="space-y-1 mb-2">
-                                                            <p className="text-gray-700">
-                                                                <span className="font-semibold">📍 Location:</span> {request.location}
-                                                            </p>
-                                                            <p className="text-gray-700">
-                                                                <span className="font-semibold">👤 Requested by:</span> {request.requesterName}
-                                                            </p>
-                                                        </div>
-                                                        {request.notes && (
-                                                            <p className="text-gray-600 text-sm italic px-3 py-2 bg-white rounded-lg border-l-2 border-yellow-300 mt-2">
-                                                                "{request.notes}"
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                        </div>
                                     </div>
                                 )}
 
