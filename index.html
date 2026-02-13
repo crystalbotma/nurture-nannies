@@ -1157,10 +1157,13 @@
                                                     {dayPlaydates.length > 0 ? (
                                                         <div className="space-y-2">
                                                             {dayPlaydates.map(pd => (
-                                                                <div key={pd.id} className="bg-lime-100 rounded p-2 text-xs">
-                                                                    <p className="font-semibold text-gray-800">📍 {pd.hostName}</p>
-                                                                    <p className="text-gray-700">🕐 {pd.time}</p>
+                                                                <div key={pd.id} className={`rounded p-2 text-xs ${pd.isHostRequest ? 'bg-yellow-100 border-l-2 border-yellow-400' : 'bg-lime-100 border-l-2 border-lime-500'}`}>
+                                                                    <p className="font-semibold text-gray-800">👤 {pd.hostName}</p>
                                                                     {pd.babyName && <p className="text-gray-700">👶 {pd.babyName}</p>}
+                                                                    <p className="text-gray-700">🕐 {pd.time}{pd.endTime ? ` - ${pd.endTime}` : ''}</p>
+                                                                    <p className="text-gray-700">🏠 Villa {pd.villa}</p>
+                                                                    {pd.community && <p className="text-gray-600">📍 {pd.community}</p>}
+                                                                    {pd.isHostRequest && <p className="text-yellow-700 font-semibold">🏡 Host Request</p>}
                                                                 </div>
                                                             ))}
                                                         </div>
